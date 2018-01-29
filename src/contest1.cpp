@@ -80,8 +80,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 	ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, yaw*180/pi);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
 	ros::init(argc, argv, "image_listener");
 	ros::NodeHandle nh;
 	teleController eStop;
