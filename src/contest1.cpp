@@ -17,6 +17,7 @@
 
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
+#include "a_star.h"
 
 using namespace std;
 ros::Publisher vel_pub;
