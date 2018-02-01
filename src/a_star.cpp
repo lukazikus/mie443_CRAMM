@@ -1,18 +1,6 @@
-#include<bits/stdc++.h>
-#include "a_star.h"
+#include <bits/stdc++.h>
+#include "../include/a_star.h"
 using namespace std;
-
-// #define ROW 9
-// #define COL 10
-//
-// typedef pair<int, int> Pair; // Creating a shortcut for int, int pair type
-// typedef pair<double, pair<int, int> > pPair; // Creating a shortcut for pair<int, pair<int, int>> type
-//
-// // A structure to hold the neccesary parameters
-// struct cell{
-//     int parent_i, parent_j; // Row and Column index of its parent; Note that 0 <= i <= ROW-1 & 0 <= j <= COL-1
-//     double f, g, h;
-// };
 
 // A Utility Function to check whether given cell (row, col) is a valid cell or not.
 bool isValid(int row, int col){
@@ -35,9 +23,7 @@ double calculateHValue(int row, int col, Pair dest){
     return (double)(abs(row-dest.first) + abs(col-dest.second));
 }
 
-// A Utility Function to trace the path from the source to destination
-void tracePath(cell cellDetails[][COL], Pair dest){
-    printf ("\nThe Path is ");
+stack<Pair> path(cell cellDetails[][COL], Pair dest){
     int row = dest.first;
     int col = dest.second;
 
@@ -52,17 +38,19 @@ void tracePath(cell cellDetails[][COL], Pair dest){
     }
 
     Path.push (make_pair (row, col));
-    while (!Path.empty())
-    {
+    return Path;
+}
+
+// A Utility Function to trace the path from the source to destination
+void tracePath(stack<Pair> Path){
+    while (!Path.empty()){
         Pair p = Path.top();
         Path.pop();
         printf("-> (%d,%d) ",p.first,p.second);
     }
-
-    return;
 }
 
-bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[][COL], set<pPair> &openList, int i, int j, int k, int l, Pair dest){
+bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[][COL], set<pPair> &openList, int i, int j, int k, int l, Pair dest, stack<Pair> &Path){
     // To store the 'g', 'h' and 'f' of the 8 successors
     double gNew, hNew, fNew;
 
@@ -74,7 +62,8 @@ bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[]
             cellDetails[k][l].parent_i = i;
             cellDetails[k][l].parent_j = j;
             printf ("The destination cell is found\n");
-            tracePath (cellDetails, dest);
+            Path = path(cellDetails, dest);
+            tracePath (Path);
             return true;
         }
         // If the successor is already on the closed list or if it is blocked, then ignore it.
@@ -100,8 +89,51 @@ bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[]
     return false;
 }
 
+void printMap(int grid[][COL]){
+    for(int i = 0; i < ROW; i++){
+        for(int j = 0; j < COL; j++){
+            printf("%d,", grid[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+void convertMap(char maze_input[][COL] , int grid[][COL], Pair &src){
+    // Create grid map that can be parsed by A*
+    for (int i = 0; i < ROW; i++){
+        for (int j = 0; j < COL; j++){
+            grid[i][j] = (maze_input[i][j] == 'B' || maze_input[i][j] == 'U') ? 0 : 1;
+            if (maze_input[i][j] == 'W' || maze_input[i][j] == 'A' || maze_input[i][j] == 'S' || maze_input[i][j] == 'D'){
+                src = make_pair(i,j);
+            }
+        }
+    }
+}
+
+float map_to_world(int map_coord){
+    return map_coord*SCALE;
+}
+
+int world_to_map(float world_coord){
+    return int(world_coord/SCALE);
+}
+
+Pair goal(char maze_input[][COL], int grid[][COL], Pair cur_pos){
+    Pair dest;
+    // Only find the shortest U at the front for now
+    for (int i = cur_pos.first; i > 0; i--){
+        if (maze_input[i][cur_pos.second] == 'U'){
+            dest = make_pair(i, cur_pos.second);
+            grid[i][cur_pos.second] = 1;
+            break;
+        }
+    }
+
+    return dest;
+}
+
 // A* Function to find the shortest path between a given source cell to a destination cell
-void aStarSearch(int grid[][COL], Pair src, Pair dest){
+void aStarSearch(int grid[][COL], Pair src, Pair dest, stack<Pair> &Path){
     // If the source is out of range
     if (isValid (src.first, src.second) == false){
         printf ("Source is invalid\n");
@@ -168,44 +200,48 @@ void aStarSearch(int grid[][COL], Pair src, Pair dest){
         // To store the 'g', 'h' and 'f' of the 8 successors
         double gNew, hNew, fNew;
 
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i-1, j, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i, j+1, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i, j-1, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i-1, j+1, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i-1, j-1, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j+1, dest)) return;
-        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j+1, dest)) return;
+        // Assume only up, down, left, or right motions are possible
+        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i-1, j, dest, Path)) return;
+        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j, dest, Path)) return;
+        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i, j+1, dest, Path)) return;
+        if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i, j-1, dest, Path)) return;
+        // if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i-1, j+1, dest, Path)) return;
+        // if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i-1, j-1, dest, Path)) return;
+        // if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j+1, dest, Path)) return;
+        // if(searchSuccessor(cellDetails, closedList, grid, openList, i, j, i+1, j+1, dest, Path)) return;
     }
     // When destination cell is not found and open list is empty, then we failed to reach the destination cell
     if (foundDest == false)
         printf("Failed to find the Destination Cell\n");
 
-    return;
+    return ;
 }
 
 // Test above function
 int main(){
     /* Description of the Grid-
-     1--> The cell is not blocked
-     0--> The cell is blocked    */
+    1--> The cell is not blocked
+    0--> The cell is blocked
+    NOTE: Each grid cell represents where the robot's centre could potentially be
+    When the map outputs B or O, it must account for the size of the robot
+        */
 
-     int grid[ROW][COL] =
-     {
-        { 1, 0, 1, 1, 1, 1, 0, 1, 1, 1 },
-        { 1, 1, 1, 0, 1, 1, 1, 0, 1, 1 },
-        { 1, 1, 1, 0, 1, 1, 0, 1, 0, 1 },
-        { 0, 0, 1, 0, 1, 0, 0, 0, 0, 1 },
-        { 1, 1, 1, 0, 1, 1, 1, 0, 1, 0 },
-        { 1, 0, 1, 1, 1, 1, 0, 1, 0, 0 },
-        { 1, 0, 0, 0, 0, 1, 0, 0, 0, 1 },
-        { 0, 0, 1, 1, 1, 1, 0, 1, 1, 1 },
-        { 1, 1, 1, 0, 0, 0, 1, 0, 0, 1 }
-    };
+    stack<Pair> Path;
+    int grid[ROW][COL];
+    Pair src, dest;
 
-    Pair src = make_pair(8, 0); // Source is the start point
-    Pair dest = make_pair(0, 0); // Destination is the goal point
-    aStarSearch(grid, src, dest); // Run A*
+    char maze_input[ROW][COL] = {{'B','B','B','U','U','U'},{'O','U','O','U','U','U'},{'O','O','O', 'U','U','U'},
+                              {'T','T','T','O','O','O'},{'T','W','T','O','O','O'},{'T','T','T','O','O','O'}};
+
+    // Create grid map that can be parsed by A*
+    convertMap(maze_input, grid, src);
+    dest = goal(maze_input, grid, src);
+
+    printf("Source: (%d,%d)\n", src.first,src.second);
+    printf("Destination: (%d,%d)\n", dest.first,dest.second);
+    printMap(grid);
+
+    aStarSearch(grid, src, dest, Path); // Run A*
 
     return(0);
 }
