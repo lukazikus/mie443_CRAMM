@@ -17,6 +17,7 @@
 
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
+#include <a_star.h>
 
 using namespace std;
 ros::Publisher vel_pub;
@@ -100,6 +101,15 @@ int main(int argc, char **argv){
 	linear = 0.0;
 	geometry_msgs::Twist vel;
 
+	// Hard-coded maze_input (will be replaced by Navigation node's output)
+	int grid[ROW][COL];
+	Pair src, dest;
+	stack<Pair> Path;
+	float wayX, wayY; // Keep track of robot's current goal coordinates in the world frame
+
+	char maze_input[ROW][COL] = {{'B','B','B','U','U','U'},{'O','U','O','U','U','U'},{'O','O','O', 'U','U','U'},
+							  {'T','T','T','O','O','O'},{'T','W','T','O','O','O'},{'T','T','T','O','O','O'}};
+
 	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
@@ -136,11 +146,35 @@ int main(int argc, char **argv){
 		
 		angular = 0.0;
 		linear = 0.0;
+		
+		// Sensor information display
+		ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
 
-		vel.angular.z = angular;
-		vel.linear.x = linear;
+		convertMap(maze_input, grid, src); // Create grid map that can be parsed by A*// Create grid map that can be parsed by A*
+		dest = goal(maze_input, grid, src); // Determine next destination for robot to follow
+		aStarSearch(grid, src, dest, Path); // Compute path
 
-		vel_pub.publish(vel);
+		while(!Path.empty()){ // Follow the current path's goal waypoints
+			Pair p = Path.top(); // Extract current waypoint
+	        Path.pop(); // Remove waypoint from stack
+			wayX = p.second*SCALE; // Calculate world coordinates of the robot
+			wayY = p.first*SCALE;
+
+			// Detect if the robot needs to change directions
+			if(false){
+				// Change directions
+				while(false){
+
+				}
+			}
+
+			// Move forward to the next waypoint
+			while(abs(posX-wayX) < RES && abs(posY-wayY < RES)){
+				vel.angular.z = angular;
+				vel.linear.x = linear;
+				vel_pub.publish(vel);
+			}
+		}
 	}
 
 	return 0;
