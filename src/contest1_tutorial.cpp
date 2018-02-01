@@ -107,7 +107,7 @@ int main(int argc, char **argv){
 		//...................................
 
 		//fill with your code
-		ROS_INFO("Position: (%f, %f) Orientation: %f rad %f degrees Range: %f", posX, posY, yaw, yaw*180/pi, laserRange);
+		// ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
 		ROS_INFO("Angle Min: %f, Angle Max: %f, Angle increment: %f, Range min: %f, Range Max: %f", \
 			 minAngle, maxAngle, incrAngle, rangeMin, rangeMax);
 
@@ -134,8 +134,8 @@ int main(int argc, char **argv){
 			linear = 0.0;
 		}
 		
-		angular = 0.0;
-		linear = 0.0;
+		// angular = 0.0;
+		// linear = 0.0;
 
 		vel.angular.z = angular;
 		vel.linear.x = linear;
