@@ -1,10 +1,14 @@
 #include<bits/stdc++.h>
 using namespace std;
 
-#define ROW 6
-#define COL 6
+#define ROW 31
+#define COL 23
 #define SCALE 3.0
+#define RES_ANG 0.1
 #define RES 0.1
+#define half_square 1
+#define u_row_num 2
+#define u_rec_length 1
 
 struct cell{
     int parent_i, parent_j; // Row and Column index of its parent; Note that 0 <= i <= ROW-1 & 0 <= j <= COL-1

@@ -118,18 +118,132 @@ int world_to_map(float world_coord){
     return int(world_coord/SCALE);
 }
 
+int check_num_u(char maze_input[][COL], Pair dest, Pair obs_dest, int rob_direction){
+    int square_boundary[4];//(x,y,x,y) (top left, bottom right)
+    int u_checking_boundary[4];
+    int num_u = 0;
+    //form robot region
+    square_boundary[0] = dest.first - half_square >= 0 ? dest.first - half_square:0;
+    square_boundary[1] = dest.second - half_square >= 0 ? dest.second - half_square:0;
+    square_boundary[2] = dest.first + half_square < ROW ? dest.first + half_square:ROW-1;//size of the x input matrix
+    square_boundary[3] = dest.second + half_square < COL ? dest.second + half_square:COL-1;//size of the y input matrix
+    // check whether robot is safe to go there
+    if (square_boundary[2] - square_boundary[0] < 2 || square_boundary[3] - square_boundary[1] < 2){
+        //cout << "robot is too big";
+        //cout << endl;
+        return 0;
+    }
+
+    if (rob_direction == 1){//front
+        u_checking_boundary[0] = obs_dest.first - u_rec_length >= 0 ? obs_dest.first - u_rec_length:0;
+        u_checking_boundary[1] = obs_dest.second - u_rec_length >= 0 ? obs_dest.second - u_rec_length:0;
+        u_checking_boundary[2] = obs_dest.first;
+        u_checking_boundary[3] = obs_dest.second + u_rec_length <= COL-1 ? obs_dest.second + u_rec_length:COL-1;
+    }else if (rob_direction == 2){//right
+        u_checking_boundary[0] = obs_dest.first - u_rec_length >= 0 ? obs_dest.first - u_rec_length:0;
+        u_checking_boundary[1] = obs_dest.second;
+        u_checking_boundary[2] = obs_dest.first + u_rec_length <= ROW-1 ? obs_dest.first + u_rec_length:ROW-1;
+        u_checking_boundary[3] = obs_dest.second + u_rec_length <= COL-1 ? obs_dest.second + u_rec_length:COL-1;
+    }else if (rob_direction == 3){//left
+        u_checking_boundary[0] = obs_dest.first - u_rec_length >= 0 ? obs_dest.first - u_rec_length:0;
+        u_checking_boundary[1] = obs_dest.second - u_rec_length >= 0 ? obs_dest.second - u_rec_length:0;
+        u_checking_boundary[2] = obs_dest.first + u_rec_length <= ROW-1 ? obs_dest.first + u_rec_length:ROW-1;
+        u_checking_boundary[3] = obs_dest.second;//size of the y input matrix
+    }else if (rob_direction == 4){//back
+        u_checking_boundary[0] = obs_dest.first;
+        u_checking_boundary[1] = obs_dest.second - u_rec_length >= 0 ? obs_dest.second - u_rec_length:0;
+        u_checking_boundary[2] = obs_dest.first + u_rec_length <= ROW-1 ? obs_dest.first + u_rec_length:ROW-1;//size of the x input matrix
+        u_checking_boundary[3] = obs_dest.second + u_rec_length <= COL-1 ? obs_dest.second + u_rec_length:COL-1;//size of the y input matrix
+    }
+
+    // Check the obstacle rectangle
+    for (int r = u_checking_boundary[0]; r <= u_checking_boundary[2]; r++){
+        for (int i = u_checking_boundary[1]; i <= u_checking_boundary[3]; i++){//go through first row
+            if (maze_input[r][i] == 'U'){
+                num_u += 1;
+            }
+        }
+    }
+
+    return num_u;
+}
 Pair goal(char maze_input[][COL], int grid[][COL], Pair cur_pos){
-    Pair dest;
-    // Only find the shortest U at the front for now
-    for (int i = cur_pos.first; i > 0; i--){
-        if (maze_input[i][cur_pos.second] == 'U'){
-            dest = make_pair(i, cur_pos.second);
-            grid[i][cur_pos.second] = 1;
+    int direction = 0;//1: forward, 2: right, 3: left, 4: back
+    int max_u = 0;//maximum possible u
+    int temp_u = 0; // Temporary
+    Pair rob_dest; // Robot destination
+    Pair obs_dest; // Obstacle destination
+    Pair final_dest; // Can eventually be same as rob_dest
+    // Only find the shortest U at the front
+    for (int i = cur_pos.first; i >= 0; i--){
+        if (maze_input[i][cur_pos.second] == 'U' || maze_input[i][cur_pos.second - 1] == 'U' || maze_input[i][cur_pos.second + 1] == 'U'){//first U at the front
+            rob_dest = make_pair(i+2, cur_pos.second);
+            obs_dest = make_pair(i, cur_pos.second);
+            temp_u = check_num_u(maze_input, rob_dest, obs_dest, 1);
+            if (temp_u > max_u){
+                max_u = temp_u;
+                direction = 1;
+                final_dest = rob_dest;
+            }
+
+            break;
+        }else if (maze_input[i][cur_pos.second] == 'B' || maze_input[i][cur_pos.second - 1] == 'B' || maze_input[i][cur_pos.second + 1] == 'B'){//if blocked at front, direction stay at 0
+            break;
+        }
+    }
+    // Only find the shortest U at the right
+    for (int i = cur_pos.second; i < COL; i++){
+        if (maze_input[cur_pos.first][i] == 'U'){//first U at the front
+            rob_dest = make_pair(cur_pos.first, i-2);//robot needs to go to a 'O' that is 2 cells before the U in order to not crash
+            obs_dest = make_pair(cur_pos.first, i);
+            temp_u = check_num_u(maze_input, rob_dest, obs_dest, 2);
+            if (temp_u > max_u){
+                max_u = temp_u;
+                direction = 2;
+                final_dest = rob_dest;
+            }
+
+            break;
+        }else if (maze_input[cur_pos.first][i] == 'B' || maze_input[cur_pos.first+1][i] == 'B' || maze_input[cur_pos.first-1][i] == 'B'){//if blocked at right, direction stay as before
+            break;
+        }
+    }
+    // Only find the shortest U at the left
+    for (int i = cur_pos.second; i >= 0; i--){
+        if (maze_input[cur_pos.first][i] == 'U'){//first U at the front
+            rob_dest = make_pair(cur_pos.first, i+2);//robot needs to go to a 'O' that is 2 cells before the U in order to not crash
+            obs_dest = make_pair(cur_pos.first, i);
+            temp_u = check_num_u(maze_input, rob_dest, obs_dest, 3);
+            if (temp_u > max_u){
+                max_u = temp_u;
+                direction = 3;
+                final_dest = rob_dest;
+            }
+
+            break;
+        }else if (maze_input[cur_pos.first][i] == 'B' || maze_input[cur_pos.first+1][i] == 'B' || maze_input[cur_pos.first-1][i] == 'B'){//if blocked at right, direction stay as before
+            break;
+        }
+    }
+    // Only find the shortest U at the back
+    for (int i = cur_pos.first; i < ROW; i++){
+        if (maze_input[i][cur_pos.second] == 'U'){//first U at the front
+            rob_dest = make_pair(i-2, cur_pos.second);//robot needs to go to a 'O' that is 2 cells before the U in order to not crash
+            obs_dest = make_pair(i, cur_pos.second);
+            temp_u = check_num_u(maze_input, rob_dest, obs_dest, 4);
+            if (temp_u > max_u){
+                max_u = temp_u;
+                direction = 3;
+                final_dest = rob_dest;
+            }
+
+            break;
+        }else if (maze_input[i][cur_pos.second] == 'B' || maze_input[i][cur_pos.second - 1] == 'B' || maze_input[i][cur_pos.second + 1] == 'B'){//if blocked at front, direction stay at 0
             break;
         }
     }
 
-    return dest;
+    return final_dest;
 }
 
 // A* Function to find the shortest path between a given source cell to a destination cell
