@@ -17,10 +17,7 @@
 
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
-<<<<<<< HEAD
-=======
 #include "a_star.h"
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 
 using namespace std;
 ros::Publisher vel_pub;
@@ -38,10 +35,7 @@ bool bumperLeft = 0, bumperCenter = 0, bumperRight = 0;
 //laser variables
 double laserRange = 10;
 int laserSize = 0, laserOffset = 0, desiredAngle = 10;
-<<<<<<< HEAD
 float minAngle = 0.0 , maxAngle = 0.0, incrAngle = 0.0, rangeMax = 0.0, rangeMin = 0.0;
-=======
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
 	if(msg.bumper == 0){
@@ -54,10 +48,7 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg){
 }
 
 void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
-<<<<<<< HEAD
 	ROS_INFO("Anxious\n");
-=======
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 	laserSize = (msg->angle_max - msg->angle_min)/msg->angle_increment; // Number of range indices in sensor field of view
 	laserOffset = desiredAngle*pi/(180*msg->angle_increment); // Number of range indices in desired field of view
 	laserRange = 11; // Minimum number of range indices
@@ -79,17 +70,14 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 	if(laserRange == 11){
 		laserRange = 0;
 	}
-<<<<<<< HEAD
 	printf("HELLO\n");
 
 	minAngle = msg->angle_min; maxAngle = msg->angle_max; incrAngle = msg->angle_increment;
 	rangeMin = msg->ranges[0]; rangeMax = msg->ranges[laserSize];
 	ROS_INFO("Size of laser scan array: %i and size offset: %i", laserSize, laserOffset);
 	ROS_INFO("Angle Min: %f, Angle Max: %f", msg->angle_min, msg->angle_max);
-=======
 
 	ROS_INFO("Size of laser scan array: %i and size offset: %i", laserSize, laserOffset);
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
@@ -106,11 +94,8 @@ int main(int argc, char **argv){
 	teleController eStop;
 
 	ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
-<<<<<<< HEAD
 	ros::Subscriber laser_sub = nh.subscribe("/scan", 10, &laserCallback);
-=======
 	ros::Subscriber laser_sub = nh.subscribe("scan", 10, &laserCallback);
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 	ros::Subscriber odom = nh.subscribe("/odom", 1, odomCallback);
 
 	vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
@@ -126,13 +111,10 @@ int main(int argc, char **argv){
 		//...................................
 
 		//fill with your code
-<<<<<<< HEAD
 		// ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
 		ROS_INFO("Angle Min: %f, Angle Max: %f, Angle increment: %f, Range min: %f, Range Max: %f", \
 			 minAngle, maxAngle, incrAngle, rangeMin, rangeMax);
-=======
 		ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 
 		//Odometry and bumper code
 		if(posX < 0.5 && yaw < pi/2 && !bumperRight && !bumperCenter && !bumperLeft && laserRange > 0.7){
@@ -156,12 +138,9 @@ int main(int argc, char **argv){
 			angular = 0.0;
 			linear = 0.0;
 		}
-<<<<<<< HEAD
-		
+
 		// angular = 0.0;
 		// linear = 0.0;
-=======
->>>>>>> 90909c2e97c7fa0e9015bcf9285d6221a47d87fb
 
 		vel.angular.z = angular;
 		vel.linear.x = linear;

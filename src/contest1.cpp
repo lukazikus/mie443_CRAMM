@@ -102,13 +102,52 @@ int main(int argc, char **argv){
 	stack<Pair> Path;
 	float wayX, wayY; // Keep track of robot's current goal coordinates in the world frame
 
-	char maze_input[ROW][COL] = {{'B','B','B','U','U','U'},
-								 {'O','U','O','U','U','U'},
-								 {'O','O','O', 'U','U','U'},
-								 {'T','T','T','O','O','O'},
-								 {'T','W','T','O','O','O'},
-								 {'T','T','T','O','O','O'}};
+	// Test input to be replaced by Mapping
+	char maze_input_big[ROW*2][COL*2];
+    for (int i = 0; i < ROW * 2; i++){
+        for (int j = 0; j < COL * 2; j++){
+            if (i == ROW && j == COL){
+                maze_input_big[i][j] = 'W';
+            }else{
+                maze_input_big[i][j] = 'U';
+            }
+        }
+    }
+
+	char maze_input[ROW][COL] = {{'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B'},
+                               {'B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B'},
+                               {'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U'},
+                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U'},
+                               {'T','T','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'T','W','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'T','T','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'}};
+
 	int dir = 0; // 0 means forward, 1 means left, 2 means right
+	int rot = 1; // 1 means CCW, -1 means CW
 
 
 	while(ros::ok()){
@@ -135,7 +174,8 @@ int main(int argc, char **argv){
 				// Change directions
 				while(abs(yaw - pi) > RES_ANG && abs(yaw + pi) > RES_ANG){
 					linear = 0.0;
-					angular = pi/6;
+					rot = yaw > -pi/2 ? 1:-1; // Rotate in the direction of shortest angular displacement
+					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
@@ -143,7 +183,8 @@ int main(int argc, char **argv){
 			}else if(wayX > src.first){ // Make robot face right
 				while(abs(yaw) > RES_ANG){
 					linear = 0.0;
-					angular = pi/6;
+					rot = yaw > pi/2 ? 1:-1;
+					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
@@ -151,7 +192,8 @@ int main(int argc, char **argv){
 			}else if(wayY > src.second){ // Make robot face down
 				while(abs(yaw + pi/2) > RES_ANG){
 					linear = 0.0;
-					angular = pi/6;
+					rot = yaw > 0 ? 1:-1;
+					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
