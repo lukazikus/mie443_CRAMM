@@ -86,6 +86,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nh;
 	teleController eStop;
 
+	ros::spinOnce();
 	ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
 	ros::Subscriber laser_sub = nh.subscribe("scan", 10, &laserCallback);
 	ros::Subscriber odom = nh.subscribe("/odom", 1, odomCallback);
@@ -149,8 +150,10 @@ int main(int argc, char **argv){
 	int dir = 0; // 0 means forward, 1 means left, 2 means right
 	int rot = 1; // 1 means CCW, -1 means CW
 
-
-	while(ros::ok()){
+	printf("RIGHT BEFORE The stupid loop\n");
+	//while(ros::ok()){
+	while(1){
+		printf("11111\n");
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
@@ -161,36 +164,48 @@ int main(int argc, char **argv){
 
 		convertMap(maze_input, grid, src); // Create grid map that can be parsed by A*// Create grid map that can be parsed by A*
 		dest = goal(maze_input, grid, src); // Determine next destination for robot to follow
+		
+		printf("(DestX,DestY) = (%d, %d)\n", dest.first,dest.second);
+		printf("(PosX,PosY,Yaw) = (%f, %f, %f)\n", posX, posY, yaw);
+		
 		aStarSearch(grid, src, dest, Path); // Compute path
-
+		printf("22222\n");
 		while(!Path.empty()){ // Follow the current path's goal waypoints
 			Pair p = Path.top(); // Extract current waypoint
-	       	Path.pop(); // Remove waypoint from stack
+	       		Path.pop(); // Remove waypoint from stack
 			wayX = p.second*SCALE; // Calculate next world coordinates of the robot
 			wayY = p.first*SCALE;
-
+			printf("33333\n");
 			// Detect if the robot needs to change directions
 			if(wayX < src.first){ // Make robot face left
 				// Change directions
-				while(abs(yaw - pi) > RES_ANG && abs(yaw + pi) > RES_ANG){
+				while(abs(abs(yaw)-pi) > RES_ANG){//abs(yaw - pi) > RES_ANG && abs(yaw + pi) > RES_ANG){
+					ros::spinOnce();
+					printf("YAW: %f\n", yaw);
 					linear = 0.0;
 					rot = yaw > -pi/2 ? 1:-1; // Rotate in the direction of shortest angular displacement
 					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+					ros::spinOnce();
 				}
 			}else if(wayX > src.first){ // Make robot face right
 				while(abs(yaw) > RES_ANG){
+					ros::spinOnce();
+					printf("Stuck facing right\n");
 					linear = 0.0;
 					rot = yaw > pi/2 ? 1:-1;
 					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+					ros::spinOnce();
 				}
 			}else if(wayY > src.second){ // Make robot face down
 				while(abs(yaw + pi/2) > RES_ANG){
+					ros::spinOnce();
+					printf("Stuck facing down\n");
 					linear = 0.0;
 					rot = yaw > 0 ? 1:-1;
 					angular = pi/6*rot;
@@ -199,15 +214,18 @@ int main(int argc, char **argv){
 					vel_pub.publish(vel);
 				}
 			}
-
+			printf("444444\n");
 			// Move forward to the next waypoint after the robot orients in the correct direction
 			while(abs(posX-wayX) > RES && abs(posY-wayY > RES)){
+				ros::spinOnce();
+				printf("Stuck facing moving\n");
 				linear = 0.2;
 				angular = 0.0;
 				vel.angular.z = angular;
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
 			}
+			printf("5555555\n");
 		}
 	}
 
