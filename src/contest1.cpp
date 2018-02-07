@@ -101,7 +101,7 @@ int main(int argc, char **argv){
 	int grid[ROW][COL];
 	Pair src, dest; // Robot's initial position
 	stack<Pair> Path;
-	float wayX, wayY; // Keep track of robot's current goal coordinates in the world frame
+	int wayX, wayY; // Keep track of robot's current goal coordinates in the grid frame
 
 	// Test input to be replaced by Mapping
 	char maze_input_big[ROW*2][COL*2];
@@ -150,10 +150,8 @@ int main(int argc, char **argv){
 	int dir = 0; // 0 means forward, 1 means left, 2 means right
 	int rot = 1; // 1 means CCW, -1 means CW
 
-	printf("RIGHT BEFORE The stupid loop\n");
-	//while(ros::ok()){
-	while(1){
-		printf("11111\n");
+	// ROBOT MUST FACE RIGHT AT THE BEGINNING
+	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
@@ -164,80 +162,80 @@ int main(int argc, char **argv){
 
 		convertMap(maze_input, grid, src); // Create grid map that can be parsed by A*// Create grid map that can be parsed by A*
 		dest = goal(maze_input, grid, src); // Determine next destination for robot to follow
-		
+
 		printf("(DestX,DestY) = (%d, %d)\n", dest.first,dest.second);
-		printf("(PosX,PosY,Yaw) = (%f, %f, %f)\n", posX, posY, yaw);
-		
+
 		aStarSearch(grid, src, dest, Path); // Compute path
-		printf("22222\n");
+		tracePath(Path);
 		while(!Path.empty()){ // Follow the current path's goal waypoints
 			Pair p = Path.top(); // Extract current waypoint
-	       		Path.pop(); // Remove waypoint from stack
-			wayX = p.second*SCALE; // Calculate next world coordinates of the robot
-			wayY = p.first*SCALE;
-			printf("33333\n");
+	       	Path.pop(); // Remove waypoint from stack
+			wayX = p.second; // Calculate next world coordinates of the robot
+			wayY = p.first;
+
+			printf("WayX,WayY = (%d,%d)\n", wayX, wayY);
+			printf("(CurX,CurY,Yaw) = (%d, %d, %f)\n", src.first, src.second, yaw);
+
 			// Detect if the robot needs to change directions
-			if(wayX < src.first){ // Make robot face left
+			if(wayX < src.second){ // Make robot face left
 				// Change directions
-				while(abs(abs(yaw)-pi) > RES_ANG){
+				while(ros::ok() && abs(abs(yaw)-pi) > RES_ANG){
+					// printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi);
 					ros::spinOnce();
-					printf("YAW: %f\n", yaw);
 					linear = 0.0;
-					rot = yaw > -pi/2 ? 1:-1; // Rotate in the direction of shortest angular displacement
+					rot = yaw > 0 && yaw < pi? 1:-1; // Rotate in the direction of shortest angular displacement
 					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
-					ros::spinOnce();
 				}
-			}else if(wayX > src.first){ // Make robot face right
-				while(abs(yaw) > RES_ANG){
+			}else if(wayX > src.second){ // Make robot face right
+				while(ros::ok() && abs(yaw) > RES_ANG){
 					ros::spinOnce();
 					printf("Stuck facing right\n");
 					linear = 0.0;
-					rot = yaw > pi/2 ? 1:-1;
+					rot =  yaw > -pi && yaw < 0 ? 1:-1;
 					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
-					ros::spinOnce();
 				}
-			}else if(wayY > src.second){ // Make robot face down
-				while(abs(yaw + pi/2) > RES_ANG){
+			}else if(wayY > src.first){ // Make robot face down
+				while(ros::ok() && abs(yaw + pi/2) > RES_ANG){
 					ros::spinOnce();
 					printf("Stuck facing down\n");
 					linear = 0.0;
-					rot = yaw > 0 ? 1:-1;
+					rot = (yaw > -pi && yaw < -pi/2) || (yaw > pi/2 && yaw < pi) ? 1:-1;
 					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
 				}
-			}else if (wayY < sec.second){// Make robot face up
-				while(abs(yaw - pi/2) > RES_ANG){// I DID NOT MODIFY WHATEVER IS IN THIS WHILE LOOP + ELSE IF STATEMENT
+			}else if (wayY < src.first){// Make robot face up
+				while(ros::ok() && abs(yaw - pi/2) > RES_ANG){
 					ros::spinOnce();
-					printf("Stuck facing up\n");
+					// printf("Stuck facing up\n");
+					printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi/2);
 					linear = 0.0;
-					rot = yaw > 0 ? 1:-1;
+					rot = yaw > -pi/2 && yaw < pi/2 ? 1:-1;
 					angular = pi/6*rot;
+					printf("Angular velocity: %f\n", angular);
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
 				}
-
 			}
-			printf("444444\n");
 			// Move forward to the next waypoint after the robot orients in the correct direction
 			while(abs(posX-wayX) > RES && abs(posY-wayY > RES)){
 				ros::spinOnce();
-				printf("Stuck facing moving\n");
+				printf("Stuck moving\n");
 				linear = 0.2;
 				angular = 0.0;
 				vel.angular.z = angular;
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
 			}
-			printf("5555555\n");
+			printf("Reached\n");
 		}
 	}
 

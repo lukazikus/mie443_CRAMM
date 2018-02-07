@@ -48,6 +48,7 @@ void tracePath(stack<Pair> Path){
         Path.pop();
         printf("-> (%d,%d) ",p.first,p.second);
     }
+    printf("\n");
 }
 
 bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[][COL], set<pPair> &openList, int i, int j, int k, int l, Pair dest, stack<Pair> &Path){
@@ -63,7 +64,7 @@ bool searchSuccessor(cell cellDetails[][COL], bool closedList[][COL], int grid[]
             cellDetails[k][l].parent_j = j;
             printf ("The destination cell is found\n");
             Path = path(cellDetails, dest);
-            tracePath (Path);
+            // tracePath (Path);
             return true;
         }
         // If the successor is already on the closed list or if it is blocked, then ignore it.
@@ -243,6 +244,18 @@ Pair goal(char maze_input[][COL], int grid[][COL], Pair cur_pos){
         }
     }
 
+    if (direction == 0){//if everywhere around is explored
+        if (maze_input[cur_pos.first - 2][cur_pos.second] == 'O'){//front is ok
+            final_dest = make_pair(cur_pos.first - 2, cur_pos.second);
+        }else if (maze_input[cur_pos.first][cur_pos.second]+2 == 'O'){//right is ok
+            final_dest = make_pair(cur_pos.first, cur_pos.second+2);
+        }else if (maze_input[cur_pos.first][cur_pos.second]-2 == 'O'){//left is ok
+            final_dest = make_pair(cur_pos.first, cur_pos.second-2);
+        }else if (maze_input[cur_pos.first + 2][cur_pos.second] == 'O'){//back is ok
+            final_dest = make_pair(cur_pos.first + 2, cur_pos.second);
+        }
+    }
+
     return final_dest;
 }
 
@@ -344,8 +357,37 @@ int main(){
     int grid[ROW][COL];
     Pair src, dest;
 
-    char maze_input[ROW][COL] = {{'B','B','B','U','U','U'},{'O','U','O','U','U','U'},{'O','O','O', 'U','U','U'},
-                              {'T','T','T','O','O','O'},{'T','W','T','O','O','O'},{'T','T','T','O','O','O'}};
+    char maze_input[ROW][COL] = {{'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B'},
+                               {'B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B'},
+                               {'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U'},
+                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U'},
+                               {'T','T','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'T','W','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'T','T','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'}};
 
     // Create grid map that can be parsed by A*
     convertMap(maze_input, grid, src);
@@ -356,6 +398,11 @@ int main(){
     printMap(grid);
 
     aStarSearch(grid, src, dest, Path); // Run A*
+
+    Pair p = Path.top();
+    float WayX = p.first;
+    float WayY = p.second;
+    printf("(Way X,WayY) = (%d,%d)\n", WayX, WayY);
 
     return(0);
 }

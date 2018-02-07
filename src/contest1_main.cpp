@@ -61,7 +61,7 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
 		for(int i = 0; i < laserSize; i++){
 			if(laserRange > msg->ranges[i]){
 				laserRange = msg->ranges[i];
-			} 
+			}
 		}
 	}
 
@@ -86,6 +86,7 @@ int main(int argc, char **argv){
 	ros::NodeHandle nh;
 	teleController eStop;
 
+	ros::spinOnce();
 	ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
 	ros::Subscriber laser_sub = nh.subscribe("scan", 10, &laserCallback);
 	ros::Subscriber odom = nh.subscribe("/odom", 1, odomCallback);
@@ -100,13 +101,56 @@ int main(int argc, char **argv){
 	int grid[ROW][COL];
 	Pair src, dest; // Robot's initial position
 	stack<Pair> Path;
-	float wayX, wayY; // Keep track of robot's current goal coordinates in the world frame
+	int wayX, wayY; // Keep track of robot's current goal coordinates in the grid frame
 
-	char maze_input[ROW][COL] = {{'B','B','B','U','U','U'},{'O','U','O','U','U','U'},{'O','O','O', 'U','U','U'},
-							  {'T','T','T','O','O','O'},{'T','W','T','O','O','O'},{'T','T','T','O','O','O'}};
+	// Test input to be replaced by Mapping
+	char maze_input_big[ROW*2][COL*2];
+    for (int i = 0; i < ROW * 2; i++){
+        for (int j = 0; j < COL * 2; j++){
+            if (i == ROW && j == COL){
+                maze_input_big[i][j] = 'W';
+            }else{
+                maze_input_big[i][j] = 'U';
+            }
+        }
+    }
+
+	char maze_input[ROW][COL] = {{'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B'},
+                               {'B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B'},
+                               {'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B'},
+                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U'},
+                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B','B','U','U','U','U','U','U'},
+                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U'},
+                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U'},
+                               {'T','T','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'T','W','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
+                               {'T','T','T','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'}};
+
 	int dir = 0; // 0 means forward, 1 means left, 2 means right
-	
+	int rot = 1; // 1 means CCW, -1 means CW
 
+	// ROBOT MUST FACE RIGHT AT THE BEGINNING
 	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
@@ -118,45 +162,74 @@ int main(int argc, char **argv){
 
 		convertMap(maze_input, grid, src); // Create grid map that can be parsed by A*// Create grid map that can be parsed by A*
 		dest = goal(maze_input, grid, src); // Determine next destination for robot to follow
-		aStarSearch(grid, src, dest, Path); // Compute path
-		
 
+		printf("(DestX,DestY) = (%d, %d)\n", dest.first,dest.second);
+
+		aStarSearch(grid, src, dest, Path); // Compute path
+		tracePath(Path);
 		while(!Path.empty()){ // Follow the current path's goal waypoints
 			Pair p = Path.top(); // Extract current waypoint
-	       		Path.pop(); // Remove waypoint from stack
-			wayX = p.second*SCALE; // Calculate next world coordinates of the robot
-			wayY = p.first*SCALE;
+	       	Path.pop(); // Remove waypoint from stack
+			wayX = p.second; // Calculate next world coordinates of the robot
+			wayY = p.first;
+
+			printf("WayX,WayY = (%d,%d)\n", wayX, wayY);
+			printf("(CurX,CurY,Yaw) = (%d, %d, %f)\n", src.first, src.second, yaw);
 
 			// Detect if the robot needs to change directions
-			if(wayX < src.first){ // Make robot face left
+			if(wayX < src.second){ // Make robot face left
 				// Change directions
-				while(abs(yaw - pi) > RES_ANG && abs(yaw + pi) > RES_ANG){
+				while(ros::ok() && abs(abs(yaw)-pi) > RES_ANG){
+					// printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi);
+					ros::spinOnce();
 					linear = 0.0;
-					angular = pi/6;
+					rot = yaw > 0 && yaw < pi? 1:-1; // Rotate in the direction of shortest angular displacement
+					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
 				}
-			}else if(wayX > src.first){ // Make robot face right
-				while(abs(yaw) > RES_ANG){
+			}else if(wayX > src.second){ // Make robot face right
+				while(ros::ok() && abs(yaw) > RES_ANG){
+					ros::spinOnce();
+					printf("Stuck facing right\n");
 					linear = 0.0;
-					angular = pi/6;
+					rot =  yaw > -pi && yaw < 0 ? 1:-1;
+					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
 				}
-			}else if(wayY > src.second){ // Make robot face down
-				while(abs(yaw + pi/2) > RES_ANG){
+			}else if(wayY > src.first){ // Make robot face down
+				while(ros::ok() && abs(yaw + pi/2) > RES_ANG){
+					ros::spinOnce();
+					printf("Stuck facing down\n");
 					linear = 0.0;
-					angular = pi/6;
+					rot = (yaw > -pi && yaw < -pi/2) || (yaw > pi/2 && yaw < pi) ? 1:-1;
+					angular = pi/6*rot;
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+				}
+			}else if (wayY < src.first){// Make robot face up
+				while(ros::ok() && abs(yaw - pi/2) > RES_ANG){// I DID NOT MODIFY WHATEVER IS IN THIS WHILE LOOP + ELSE IF STATEMENT
+					ros::spinOnce();
+					// printf("Stuck facing up\n");
+					// printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi);
+					linear = 0.0;
+					rot = yaw > -pi/2 && yaw < pi/2 ? 1:-1;
+					angular = pi/6*rot;
+					printf("Angular velocity:");
+					vel.angular.z = angular;
+					vel.linear.x = linear;
+					vel_pub.publish(vel);
+					ros::spinOnce();
 				}
 			}
-
 			// Move forward to the next waypoint after the robot orients in the correct direction
 			while(abs(posX-wayX) > RES && abs(posY-wayY > RES)){
+				ros::spinOnce();
+				printf("Stuck moving\n");
 				linear = 0.2;
 				angular = 0.0;
 				vel.angular.z = angular;
