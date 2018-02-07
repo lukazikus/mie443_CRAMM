@@ -179,7 +179,7 @@ int main(int argc, char **argv){
 			// Detect if the robot needs to change directions
 			if(wayX < src.first){ // Make robot face left
 				// Change directions
-				while(abs(abs(yaw)-pi) > RES_ANG){//abs(yaw - pi) > RES_ANG && abs(yaw + pi) > RES_ANG){
+				while(abs(abs(yaw)-pi) > RES_ANG){
 					ros::spinOnce();
 					printf("YAW: %f\n", yaw);
 					linear = 0.0;
@@ -213,6 +213,18 @@ int main(int argc, char **argv){
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
 				}
+			}else if (wayY < sec.second){// Make robot face up
+				while(abs(yaw - pi/2) > RES_ANG){// I DID NOT MODIFY WHATEVER IS IN THIS WHILE LOOP + ELSE IF STATEMENT
+					ros::spinOnce();
+					printf("Stuck facing up\n");
+					linear = 0.0;
+					rot = yaw > 0 ? 1:-1;
+					angular = pi/6*rot;
+					vel.angular.z = angular;
+					vel.linear.x = linear;
+					vel_pub.publish(vel);
+				}
+
 			}
 			printf("444444\n");
 			// Move forward to the next waypoint after the robot orients in the correct direction
