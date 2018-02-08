@@ -44,7 +44,7 @@ int robot_j = 24;
 int BlocksToScan = 5; // defines the depth to scan in front of the robot
 double scale = 0.52;// defines the scale of the array based on 1/3 the robot size
 int robotHeading = 0; // define 0 = up, 1=left, 2 = down, 3 = right
-char maze_input[48][48];// 'U' = unexplored, 'O' = unblocked, 'B' = blocked, 'T' = travelled
+char maze_input[ROW][COL];// 'U' = unexplored, 'O' = unblocked, 'B' = blocked, 'T' = travelled
 float d = 0.52; // size of the robot
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
@@ -55,33 +55,6 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg){
 	}else if(msg.bumper == 2){
 		bumperRight = !bumperRight;
 	}
-}
-
-void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg){
-	laserSize = (msg->angle_max - msg->angle_min)/msg->angle_increment; // Number of range indices in sensor field of view
-	laserOffset = desiredAngle*pi/(180*msg->angle_increment); // Number of range indices in desired field of view
-	laserRange = 11; // Minimum number of range indices
-
-	if(desiredAngle*pi/180 < msg->angle_max && -desiredAngle*pi/180 > msg->angle_min){ // Desired FOV is smaller than sensor FOV
-		for(int i = laserSize/2 - laserOffset; i < laserSize/2 + laserOffset; i++){
-			if(laserRange > msg->ranges[i]){
-				laserRange = msg->ranges[i];
-			}
-		}
-	}else{ // Desired FOV is larger than sensor FOV
-		for(int i = 0; i < laserSize; i++){
-			if(laserRange > msg->ranges[i]){
-				laserRange = msg->ranges[i];
-			}
-		}
-	}
-
-	if(laserRange == 11){
-		laserRange = 0;
-	}
-
-	ROS_INFO("Size of laser scan array: %i and size offset: %i", laserSize, laserOffset);
-	ROS_INFO("Min Angle: %f, Max Angle: %f", msg->angle_min, msg->angle_max);
 }
 
 void scanProfile (const sensor_msgs::LaserScan::ConstPtr& msg){ 
@@ -100,6 +73,8 @@ void scanProfile (const sensor_msgs::LaserScan::ConstPtr& msg){
 	
 	}
 	
+	printf("Made it");
+
 	if(dist == 11){
 		dist = 0;
 	}
@@ -115,14 +90,14 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 
 //-------------------------------Mapping Scan Functions------------------------------------------
 
-void upscan(){
+void upscan(Pair src){
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
-		if (robot_i-j >= 0 && maze_input[robot_i - j][robot_j] != 'T'){ // If the point is not outside the array or already travelled
+		if (src.first -j >= 0 && maze_input[src.first - j][src.second] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
-				maze_input[robot_i - j][robot_j] = 'O';
+				maze_input[src.first - j][src.second] = 'O';
 			}
 			else {
-				maze_input[robot_i - j][robot_j] = 'B';
+				maze_input[src.first - j][src.second] = 'B';
 				break;
 			}
 		}
@@ -132,14 +107,14 @@ void upscan(){
 	}
 }
 	
-void leftscan(){
+void leftscan(Pair src){
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
-		if (robot_j-j > 0 && maze_input[robot_i][robot_j - j] != 'T'){ // If the point is not outside the array or already travelled
+		if (src.second-j > 0 && maze_input[src.first][src.second - j] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
-				maze_input[robot_i][robot_j - j] = 'O';
+				maze_input[src.first][src.second - j] = 'O';
 			}
 			else {
-				maze_input[robot_i][robot_j - j] = 'B';
+				maze_input[src.first][src.second - j] = 'B';
 				break;
 			}
 		}
@@ -149,14 +124,14 @@ void leftscan(){
 	}
 }
 	
-void downscan(){
+void downscan(Pair src){
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
-		if (robot_i + j < sizeof(maze_input)/(sizeof(maze_input[0])) && maze_input[robot_i + j ][robot_j] != 'T'){ // If the point is not outside the array or already travelled
+		if (src.first + j < ROW && maze_input[src.first + j ][src.second] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
-				maze_input[robot_i + j][robot_j] = 'O';
+				maze_input[src.first + j][src.second] = 'O';
 		}
 			else {
-				maze_input[robot_i + j][robot_j] = 'B';
+				maze_input[src.first + j][src.second] = 'B';
 				break;
 			}
 		}
@@ -165,14 +140,18 @@ void downscan(){
 		}
 	}
 }
-void rightscan(){
+void rightscan(Pair src){
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
-		if (robot_j + j < sizeof(maze_input[0])/sizeof(int) && maze_input[robot_i][robot_j+j] != 'T'){ // If the point is not outside the array or already travelled
+		printf("Source: %d, %d\n", src.first, src.second);
+		if (src.second + j < COL && maze_input[src.first][src.second+j] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
-				maze_input[robot_i][robot_j + j] = 'O';
-			}
-			else {
-				maze_input[robot_i][robot_j + j] = 'B';
+				
+				maze_input[src.first][src.second + j] = 'O';
+				printMap_input(maze_input);
+				// printf("");
+			}else {
+				maze_input[src.first][src.second + j] = 'B';
+				printMap_input(maze_input);
 				break;
 			}
 		}
@@ -181,20 +160,23 @@ void rightscan(){
 		}
 	}
 }
-void UpdateMap(){
+void UpdateMap(Pair src){
 	cout << dist << endl;
+	// maze_input[robot_i][robot_j] = 'T';
 	if (dist != 11) {
 		if (yaw  > pi/4 && yaw <= 3*pi/4 ) {
-			upscan();
-		}
-		else if (yaw > 3*pi/4 || yaw <= -3*pi/4){
-			leftscan();
-		}
-		else if (yaw < -pi/4 && yaw > -3*pi/4){
-			downscan();
-		}
-		else if (yaw < pi/4 && yaw > -pi/4){
-			rightscan();
+			upscan(src);
+			printf("UPSCANNING\n");
+		}else if (yaw > 3*pi/4 || yaw <= -3*pi/4){
+			leftscan(src);
+			printf("LEFTSCANNING\n");
+		}else if (yaw < -pi/4 && yaw > -3*pi/4){
+			downscan(src);
+			printf("DOWNSCANNING\n");
+		}else if (yaw < pi/4 && yaw > -pi/4){
+			printf("Src: %d, %d\n", src.first, src.second);
+			rightscan(src);
+			printf("RIGHTSCANNING\n");
 		}
 	}
 }
@@ -208,8 +190,12 @@ Pair goal( Pair cur_pos){
     Pair final_dest; // Can eventually be same as rob_dest
     final_dest.first = -1;
     final_dest.second = -1;
-    // Only find the shortest U at the front
-    for (int i = cur_pos.first; i >= 0; i--){
+	// Only find the shortest U at the front
+	
+	printf("%d,%d", cur_pos.first,cur_pos.second);
+	
+
+    for (int i = cur_pos.first - 1; i >= 0; i--){
         if (maze_input[i][cur_pos.second] != 'T'){//first O at the front
             if (maze_input[i][cur_pos.second] == 'O'){
                 final_dest = make_pair(i, cur_pos.second);
@@ -220,7 +206,8 @@ Pair goal( Pair cur_pos){
         }
     }
     // Only find the shortest U at the right
-    for (int i = cur_pos.second; i < COL; i++){
+    for (int i = cur_pos.second + 1; i < COL; i++){
+		printf("%d", i);
         if (maze_input[cur_pos.first][i] != 'T'){//first O at the right
             if (maze_input[cur_pos.first][i] == 'O'){
                 final_dest = make_pair(cur_pos.first, i);
@@ -231,7 +218,7 @@ Pair goal( Pair cur_pos){
         }
     }
     // Only find the shortest U at the left
-    for (int i = cur_pos.second; i >= 0; i--){
+    for (int i = cur_pos.second - 1; i >= 0; i--){
         if (maze_input[cur_pos.first][i] != 'T'){//first O at the front
             if (maze_input[cur_pos.first][i] == 'O'){
                 final_dest = make_pair(cur_pos.first, i);
@@ -242,7 +229,7 @@ Pair goal( Pair cur_pos){
         }
     }
     // Only find the shortest U at the back
-    for (int i = cur_pos.first; i < ROW; i++){
+    for (int i = cur_pos.first + 1; i < ROW; i++){
         //maze_input[cur_pos.first][i] == 0 || maze_input[cur_pos.first][i] == 2 || maze_input[cur_pos.first][i] == 3 
         if (maze_input[i][cur_pos.second] != 'T') {//first U at the front
             if (maze_input[i][cur_pos.second] == 'O'){
@@ -263,13 +250,15 @@ int main(int argc, char **argv){
 			maze_input[i][j] = 'U';
 		}
 	}
+	maze_input[ROW/2][COL/2] = 'D';
+
 	ros::init(argc, argv, "image_listener");
 	ros::NodeHandle nh;
 	teleController eStop;
 
 	ros::spinOnce();
 	ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
-	ros::Subscriber laser_sub = nh.subscribe("scan", 10, &laserCallback);
+	ros::Subscriber laser_sub = nh.subscribe("scan", 10, &scanProfile);
 	ros::Subscriber odom = nh.subscribe("/odom", 1, odomCallback);
 
 	vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
@@ -281,6 +270,8 @@ int main(int argc, char **argv){
 	// Hard-coded maze_input (will be replaced by Navigation node's output)
 	int grid[ROW][COL];
 	Pair src, dest; // Robot's initial position
+	src = make_pair(ROW/2,COL/2);
+
 	stack<Pair> Path;
 	int wayX, wayY; // Keep track of robot's current goal coordinates in the grid frame
 
@@ -342,6 +333,7 @@ int main(int argc, char **argv){
 	double delta_time = GRID_WIDTH / VEL; // Calculate time to travel one grid block
 
 	// ROBOT MUST FACE RIGHT AT THE BEGINNING
+	sleep(5);
 	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
@@ -351,11 +343,16 @@ int main(int argc, char **argv){
 		// Sensor information display
 		ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
 
-		UpdateMap(); // Update map to get the next path to follow
+		
+		UpdateMap(src); // Update map to get the next path to follow
+		//printMap_input(maze_input); // Print map
+
 		convertMap(maze_input, grid, src); // Create grid map that can be parsed by A*, extract current location
 		dest = goal(src); // Determine next destination for robot to follow
 
+		printf("(SrcX,SrcY) = (%d, %d)\n", src.second,src.first);
 		printf("(DestX,DestY) = (%d, %d)\n", dest.second,dest.first);
+		
 		aStarSearch(grid, src, dest, Path); // Compute path
 		tracePath(Path);
 
@@ -365,8 +362,8 @@ int main(int argc, char **argv){
 			wayX = p.second; // Calculate next coordinates of the robot
 			wayY = p.first;
 
-			printf("WayX,WayY = (%d,%d)\n", wayX, wayY);
-			printf("(CurX,CurY,Yaw) = (%d, %d, %f)\n", src.second, src.first, yaw);
+			// printf("WayX,WayY = (%d,%d)\n", wayX, wayY);
+			// printf("(CurX,CurY,Yaw) = (%d, %d, %f)\n", src.second, src.first, yaw);
 
 			// Detect if the robot needs to change directions
 			if(wayX < src.second){ // Make robot face left
@@ -437,7 +434,7 @@ int main(int argc, char **argv){
 			if(dir == 2) nextX = posX - GRID_WIDTH;
 			if(dir == 3) nextY = posY + GRID_WIDTH;
 			
-			double begin = ros::Time::now().toSec();
+			// double begin = ros::Time::now().toSec();
 			
 			/*while(ros::ok() && ros::Time::now().toSec() - begin < delta_time){ // BUGGY TIME CODE
 				ros::spinOnce();
@@ -460,6 +457,7 @@ int main(int argc, char **argv){
 				vel.angular.z = angular;
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
+				ros::spinOnce();
 			}
 			
 			printf("Reached***************************************************\n");
@@ -468,9 +466,11 @@ int main(int argc, char **argv){
 			vel.angular.z = angular;
 			vel.linear.x = linear;
 			vel_pub.publish(vel); // Stop the robot after one grid is surpassed
+			usleep(5000); // Pause after traversing one grid
 			// break;
 		}
-		// break;
+		printf("BROKE OUT OF STACK\n");
+		src.first = dest.first; src.second = dest.second; // Update starting location of robot in grid
 	}
 
 	return 0;

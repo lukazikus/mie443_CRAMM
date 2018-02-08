@@ -27,6 +27,7 @@ stack<Pair> path(cell, Pair);
 void tracePath(stack<Pair>);
 bool searchSuccessor(cell[][COL], bool[][COL], int [][COL], set<pPair> &, int, int, int, int, Pair, stack<Pair> &Path);
 void printMap(int[][COL]);
+void printMap_input(char[][COL]);
 void convertMap(char[][COL], int[][COL], Pair &);
 float map_to_world(int);
 int world_to_map(float);
