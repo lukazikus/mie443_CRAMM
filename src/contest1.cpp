@@ -43,7 +43,7 @@ double d = 0.52;
 int direction = 0;
 float rot = 0;
 float RES_ANG = 0.1;
-
+int coin = 0;
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
 	if(msg.bumper == 0){
@@ -98,11 +98,11 @@ int main(int argc, char **argv)
 	linear = 0.0;
 	geometry_msgs::Twist vel;
 	
-	while(ros::ok){
+	while(ros::ok()){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
-		if(dist > 0.6){
+		if(dist > 0.5){
 			//drive forward
 			printf("fwd\n");
 			linear = 0.2;
@@ -119,18 +119,30 @@ int main(int argc, char **argv)
 			vel_pub.publish(vel);
 			sleep(1);
 			
-			direction = rand() % 3; //random number 0 or 1
+			coin = rand() % 2; //random number 0 or 1
+			if (coin == 1){
+				direction += 1;
+			}else{
+				direction -= 1;
+			}
+			
+			if (direction > 3){
+				direction = 0;
+			}else if (direction < 0){
+				direction = 3;
+			}
 			printf("DIRECTION:%d \n",direction);
 			// Detect if the robot needs to change directions
-			if(direction == 0){ // Make robot face left
-				printf("1111111111111111\n");
-				// Change directions
-				while(ros::ok() && abs(abs(yaw)-pi) > RES_ANG){
-					// printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi);
+			if (direction == 0){// Make robot face up
+				printf("444444444444\n");
+				while(ros::ok() && abs(yaw - pi/2) > RES_ANG){
 					ros::spinOnce();
+					// printf("Stuck facing up\n");
+					printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi/2);
 					linear = 0.0;
-					rot = yaw > 0 && yaw < pi? 1:-1; // Rotate in the direction of shortest angular displacement
+					rot = yaw > -pi/2 && yaw < pi/2 ? 1:-1;
 					angular = pi/6*rot;
+					printf("Angular velocity: %f\n", angular);
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
@@ -166,16 +178,15 @@ int main(int argc, char **argv)
 					ros::spinOnce();
 					// usleep(5000);
 				}
-			}else if (direction == 3){// Make robot face up
-				printf("444444444444\n");
-				while(ros::ok() && abs(yaw - pi/2) > RES_ANG){
+			}else if(direction == 3){ // Make robot face left
+				printf("1111111111111111\n");
+				// Change directions
+				while(ros::ok() && abs(abs(yaw)-pi) > RES_ANG){
+					// printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi);
 					ros::spinOnce();
-					// printf("Stuck facing up\n");
-					printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi/2);
 					linear = 0.0;
-					rot = yaw > -pi/2 && yaw < pi/2 ? 1:-1;
+					rot = yaw > 0 && yaw < pi? 1:-1; // Rotate in the direction of shortest angular displacement
 					angular = pi/6*rot;
-					printf("Angular velocity: %f\n", angular);
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
