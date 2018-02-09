@@ -25,10 +25,13 @@ ros::Publisher vel_pub;
 
 double angular = 0.0;
 double linear = 0.0;
+int dir = 0; // 0 means forward, 1 means backward, 2 means left, 3 means right
 
 //odom variables
 double posX, posY, yaw;
 double pi = 3.1416;
+geometry_msgs::Twist vel;
+int rot = 1;
 
 //bumper variables
 bool bumperLeft = 0, bumperCenter = 0, bumperRight = 0;
@@ -85,19 +88,36 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg){
 	posY = msg->pose.pose.position.y;
 	yaw = tf::getYaw(msg->pose.pose.orientation);
 
-	ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, yaw*180/pi);
+	// ROS_INFO("Position: (%f, %f) Orientation: %f rad or %f degrees.", posX, posY, yaw, yaw*180/pi);
 }
 
 //-------------------------------Mapping Scan Functions------------------------------------------
 
-void upscan(Pair src){
+void upscan(Pair src, Pair pre_rob, int &done){
+	maze_input[pre_rob.first][pre_rob.second] = 'T';
+	maze_input[src.first][src.second] = 'W';//update robot current location
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
 		if (src.first -j >= 0 && maze_input[src.first - j][src.second] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
 				maze_input[src.first - j][src.second] = 'O';
+				done = 0;
 			}
 			else {
 				maze_input[src.first - j][src.second] = 'B';
+				done = 1;
+				dir = 3;// 0 means forward, 1 means backward, 2 means left, 3 means right
+				while(ros::ok() && abs(yaw) > RES_ANG){//make robot face right
+					ros::spinOnce();
+					printf("Stuck facing right\n");
+					linear = 0.0;
+					rot = -1;
+					angular = pi/6*rot;
+					vel.angular.z = angular;
+					vel.linear.x = linear;
+					vel_pub.publish(vel);
+					ros::spinOnce();
+					// usleep(5000);
+				}
 				break;
 			}
 		}
@@ -107,14 +127,33 @@ void upscan(Pair src){
 	}
 }
 	
-void leftscan(Pair src){
+void leftscan(Pair src, Pair pre_rob, int &done){
+	maze_input[pre_rob.first][pre_rob.second] = 'T';
+	maze_input[src.first][src.second] = 'A';//update robot current location
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
 		if (src.second-j > 0 && maze_input[src.first][src.second - j] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
 				maze_input[src.first][src.second - j] = 'O';
+				done = 0;
 			}
 			else {
 				maze_input[src.first][src.second - j] = 'B';
+				done = 1;
+				dir = 0;// 0 means forward, 1 means backward, 2 means left, 3 means right
+				while(ros::ok() && abs(yaw - pi/2) > RES_ANG){
+					ros::spinOnce();
+					// printf("Stuck facing up\n");
+					printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, pi/2);
+					linear = 0.0;
+					rot = -1;
+					angular = pi/6*rot;
+					printf("Angular velocity: %f\n", angular);
+					vel.angular.z = angular;
+					vel.linear.x = linear;
+					vel_pub.publish(vel);
+					ros::spinOnce();
+					// usleep(5000);
+				}
 				break;
 			}
 		}
@@ -124,14 +163,31 @@ void leftscan(Pair src){
 	}
 }
 	
-void downscan(Pair src){
+void downscan(Pair src, Pair pre_rob, int &done){
+	maze_input[pre_rob.first][pre_rob.second] = 'T';
+	maze_input[src.first][src.second] = 'S';//update robot current location
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
 		if (src.first + j < ROW && maze_input[src.first + j ][src.second] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
 				maze_input[src.first + j][src.second] = 'O';
+				done = 0;
 		}
 			else {
 				maze_input[src.first + j][src.second] = 'B';
+				done = 1;
+				dir = 2;// 0 means forward, 1 means backward, 2 means left, 3 means right
+				while(ros::ok() && abs(abs(yaw)-pi) > RES_ANG){
+					// left
+					ros::spinOnce();
+					linear = 0.0;
+					rot = -1; // Rotate in the direction of shortest angular displacement
+					angular = pi/6*rot;
+					vel.angular.z = angular;
+					vel.linear.x = linear;
+					vel_pub.publish(vel);
+					ros::spinOnce();
+					// usleep(5000);
+				}
 				break;
 			}
 		}
@@ -140,17 +196,33 @@ void downscan(Pair src){
 		}
 	}
 }
-void rightscan(Pair src){
+void rightscan(Pair src, Pair pre_rob, int &done){
+	maze_input[pre_rob.first][pre_rob.second] = 'T';
+	maze_input[src.first][src.second] = 'D';//update robot current location
 	for(int j=1; j<= BlocksToScan; j++){ // Depth of scan in blocks
-		printf("Source: %d, %d\n", src.first, src.second);
+		// printf("Source: %d, %d\n", src.first, src.second);
 		if (src.second + j < COL && maze_input[src.first][src.second+j] != 'T'){ // If the point is not outside the array or already travelled
 			if (dist - scale*j > 0){
-				
 				maze_input[src.first][src.second + j] = 'O';
 				printMap_input(maze_input);
+				done = 0;
 				// printf("");
 			}else {
 				maze_input[src.first][src.second + j] = 'B';
+				done = 1;
+				dir = 1;// 0 means forward, 1 means backward, 2 means left, 3 means right
+				while(ros::ok() && abs(yaw + pi/2) > RES_ANG){
+					ros::spinOnce();
+					printf("Stuck facing down while<\n");
+					linear = 0.0;
+					rot = -1;
+					angular = pi/6*rot;
+					vel.angular.z = angular;
+					vel.linear.x = linear;
+					vel_pub.publish(vel);
+					ros::spinOnce();
+					// usleep(5000);
+				}
 				printMap_input(maze_input);
 				break;
 			}
@@ -160,25 +232,28 @@ void rightscan(Pair src){
 		}
 	}
 }
-void UpdateMap(Pair src){
+void UpdateMap(Pair src, Pair pre_rob){
 	cout << dist << endl;
 	// maze_input[robot_i][robot_j] = 'T';
-	if (dist != 11) {
-		if (yaw  > pi/4 && yaw <= 3*pi/4 ) {
-			upscan(src);
-			printf("UPSCANNING\n");
-		}else if (yaw > 3*pi/4 || yaw <= -3*pi/4){
-			leftscan(src);
-			printf("LEFTSCANNING\n");
-		}else if (yaw < -pi/4 && yaw > -3*pi/4){
-			downscan(src);
-			printf("DOWNSCANNING\n");
-		}else if (yaw < pi/4 && yaw > -pi/4){
-			printf("Src: %d, %d\n", src.first, src.second);
-			rightscan(src);
-			printf("RIGHTSCANNING\n");
+	int done = 1;
+	do {// rotate when there is a block in front of it
+		if (dist != 11) {
+			if (yaw  > pi/4 && yaw <= 3*pi/4 ) {
+				upscan(src, pre_rob, done);
+				printf("UPSCANNING\n");
+			}else if (yaw > 3*pi/4 || yaw <= -3*pi/4){
+				leftscan(src, pre_rob, done);
+				printf("LEFTSCANNING\n");
+			}else if (yaw < -pi/4 && yaw > -3*pi/4){
+				downscan(src, pre_rob, done);
+				printf("DOWNSCANNING\n");
+			}else if (yaw < pi/4 && yaw > -pi/4){
+				// printf("Src: %d, %d\n", src.first, src.second);
+				rightscan(src, pre_rob, done);
+				printf("RIGHTSCANNING\n");
+			}
 		}
-	}
+	}while (done == 0);
 }
 
 //----------------------Goal Function------------------------------------
@@ -205,7 +280,7 @@ Pair goal( Pair cur_pos){
             break;
         }
     }
-    // Only find the shortest U at the right
+    // Only find the shortest U at the right'O'
     for (int i = cur_pos.second + 1; i < COL; i++){
 		printf("%d", i);
         if (maze_input[cur_pos.first][i] != 'T'){//first O at the right
@@ -269,65 +344,13 @@ int main(int argc, char **argv){
 
 	// Hard-coded maze_input (will be replaced by Navigation node's output)
 	int grid[ROW][COL];
-	Pair src, dest; // Robot's initial position
+	Pair src, dest, pre_rob; // Robot's initial position
 	src = make_pair(ROW/2,COL/2);
 
 	stack<Pair> Path;
 	int wayX, wayY; // Keep track of robot's current goal coordinates in the grid frame
 
-	// HARD CODED MAZE
-	/*
-	char maze_input[ROW][COL] = {{'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','B','B','B','B','B','B','B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','B','B','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','B','B','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','B','B','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'O','O','O','U','U','U','U','U','U','U','U','U','U','U','B','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','O','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','W','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-                               {'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'},
-				{'U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U','U'}};
-	*/
-
-	int dir = 0; // 0 means forward, 1 means backward, 2 means left, 3 means right
+	dir = 0;
 	int rot = 1; // 1 means CCW, -1 means CW
 	float nextX,nextY = 0.0;
 	double delta_time = GRID_WIDTH / VEL; // Calculate time to travel one grid block
@@ -341,13 +364,14 @@ int main(int argc, char **argv){
 		//...................................
 
 		// Sensor information display
-		ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
+		//ROS_INFO("Position: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, yaw*180/pi, laserRange);
 
 		
-		UpdateMap(src); // Update map to get the next path to follow
+		UpdateMap(src, pre_rob); // Update map to get the next path to follow
 		//printMap_input(maze_input); // Print map
-
+		pre_rob = src;
 		convertMap(maze_input, grid, src); // Create grid map that can be parsed by A*, extract current location
+		
 		dest = goal(src); // Determine next destination for robot to follow
 
 		printf("(SrcX,SrcY) = (%d, %d)\n", src.second,src.first);
@@ -379,11 +403,13 @@ int main(int argc, char **argv){
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+					ros::spinOnce();
 					// usleep(5000);
 				}
 			}else if(wayX > src.second){ // Make robot face right
-				printf("11111112221111\n");
+				printf("222222222222222\n");
 				dir = 3;
+				printf("hello it's me yaw %f \n", yaw);
 				while(ros::ok() && abs(yaw) > RES_ANG){
 					ros::spinOnce();
 					printf("Stuck facing right\n");
@@ -393,10 +419,11 @@ int main(int argc, char **argv){
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+					ros::spinOnce();
 					// usleep(5000);
 				}
 			}else if(wayY > src.first){ // Make robot face down
-				printf("11111113331111\n");
+				printf("3333333333333\n");
 				dir = 1;
 				while(ros::ok() && abs(yaw + pi/2) > RES_ANG){
 					ros::spinOnce();
@@ -407,10 +434,11 @@ int main(int argc, char **argv){
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+					ros::spinOnce();
 					// usleep(5000);
 				}
 			}else if (wayY < src.first){// Make robot face up
-				printf("1111444111111111\n");
+				printf("444444444444\n");
 				dir = 0;
 				while(ros::ok() && abs(yaw - pi/2) > RES_ANG){
 					ros::spinOnce();
@@ -423,6 +451,7 @@ int main(int argc, char **argv){
 					vel.angular.z = angular;
 					vel.linear.x = linear;
 					vel_pub.publish(vel);
+					ros::spinOnce();
 					// usleep(5000);
 				}
 			}
@@ -448,17 +477,26 @@ int main(int argc, char **argv){
 				// usleep(5000);
 			}*/
 			
-			printf("(POSX, POSY),(%f,%f), (%f, %f)\n", posX, posY, nextX, nextY);
+			//printf("(POSX, POSY),(%f,%f), (%f, %f)\n", posX, posY, nextX, nextY);
 			while(ros::ok() && abs(posX - nextX + posY - nextY) > RES){
 				ros::spinOnce();
-				printf("(POSX, POSY),(nextX, nextY) = (%f,%f), (%f, %f)\n", posX, posY, nextX, nextY);
-				linear = 0.2;
+				//printf("(In loop POSX, POSY),(nextX, nextY, dir) = (%f,%f), (%f, %f, %d)\n", posX, posY, nextX, nextY, dir);
+				linear = 0.3;
 				angular = 0.0;
 				vel.angular.z = angular;
 				vel.linear.x = linear;
 				vel_pub.publish(vel);
 				ros::spinOnce();
+				usleep(5000);
+				linear = 0.0;
+				angular = 0.0;
+				vel.angular.z = angular;
+				vel.linear.x = linear;
+				vel_pub.publish(vel); // Stop the robot after one grid is surpassed
+				ros::spinOnce();
+				usleep(5000);
 			}
+			src.first = p.first; src.second = p.second;//update robot current location
 			
 			printf("Reached***************************************************\n");
 			linear = 0.0;
