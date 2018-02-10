@@ -28,6 +28,7 @@ double linear = 0.0;
 //odom variables
 double posX, posY, yaw;
 double pi = 3.1416;
+geometry_msgs::Twist vel;
 
 //bumper variables
 bool bumperLeft = 0, bumperCenter = 0, bumperRight = 0;
@@ -46,12 +47,23 @@ float RES_ANG = 0.1;
 int coin = 0;
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
-	if(msg.bumper == 0){
-		bumperLeft = !bumperLeft;
-	}else if(msg.bumper == 1){
-		bumperCenter = !bumperCenter;
-	}else if(msg.bumper == 2){
-		bumperRight = !bumperRight;
+	if(msg.bumper == 0 || msg.bumper == 1 || msg.bumper == 2){
+		ros::spinOnce();
+		usleep(5000);
+		linear = -0.2;
+		angular = 0.0;
+		vel.angular.z = angular;
+		vel.linear.x = linear;
+		vel_pub.publish(vel); // Stop the robot after one grid is surpassed
+		ros::spinOnce();
+		usleep(5000);
+		if(msg.bumper == 0){
+			bumperLeft = !bumperLeft;
+		}else if(msg.bumper == 1){
+			bumperCenter = !bumperCenter;
+		}else if(msg.bumper == 2){
+			bumperRight = !bumperRight;
+		}
 	}
 }
 
@@ -96,7 +108,6 @@ int main(int argc, char **argv)
 	vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
 	angular = 0.0;
 	linear = 0.0;
-	geometry_msgs::Twist vel;
 	
 	while(ros::ok()){
 		ros::spinOnce();
