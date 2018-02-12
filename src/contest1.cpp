@@ -123,8 +123,9 @@ void robot_rotate(){
 }
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg){
-	if(msg.bumper == 0 || msg.bumper == 1 || msg.bumper == 2){
+	/*if(msg.bumper == 0 || msg.bumper == 1 || msg.bumper == 2){
 		ros::spinOnce();
+		
 		usleep(5000);
 		linear = -0.2;
 		angular = 0.0;
@@ -133,13 +134,15 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg){
 		vel_pub.publish(vel); // Stop the robot after one grid is surpassed
 		ros::spinOnce();
 		usleep(5000);
-		coin = rand() % 2; //random number 0 or 1
-		if (coin == 1){
-			direction += 1;
-		}else{
-			direction -= 1;
-		}
-		robot_rotate();
+
+		linear = 0.0;
+		angular = 0.0;
+		vel.angular.z = angular;
+		vel.linear.x = linear;
+		vel_pub.publish(vel); // Stop the robot after one grid is surpassed
+		
+		ros::spinOnce();
+
 		if(msg.bumper == 0){
 			bumperLeft = !bumperLeft;
 		}else if(msg.bumper == 1){
@@ -147,6 +150,13 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg){
 		}else if(msg.bumper == 2){
 			bumperRight = !bumperRight;
 		}
+	}*/
+	if(msg.bumper == 0){
+		bumperLeft = !bumperLeft;
+	}else if(msg.bumper == 1){
+		bumperCenter = !bumperCenter;
+	}else if(msg.bumper == 2){
+		bumperRight = !bumperRight;
 	}
 }
 
@@ -199,7 +209,7 @@ int main(int argc, char **argv){
 		ros::spinOnce();
 		//.....**E-STOP DO NOT TOUCH**.......
 		eStop.block();
-		if(dist > 0.5){
+		if(dist > 0.5 && !bumperRight && !bumperCenter && !bumperLeft){
 			//drive forward
 			//printf("fwd\n");
 			if (dist < 0.8){ 
