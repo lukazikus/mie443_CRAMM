@@ -68,14 +68,19 @@ void robot_rotate(){
 		angular = pi/6;
 		vel.angular.z = angular;
 		vel.linear.x = linear;
-		while(ros::ok() && abs(yaw - yaw_check > RES_ANG)){
+		while(ros::ok() && abs(yaw - yaw_check) > RES_ANG){
 			ros::spinOnce();
 			printf("CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, yaw_check);
 			vel_pub.publish(vel);
 			// usleep(5000);
 		}
 		ros::spinOnce();
-		dist_config.at(i) = dist; // Extract distance value of current yaw angle
+		if (dist > 10){
+			dist_config.at(i) = 10;
+		}else{
+			dist_config.at(i) = dist; // Extract distance value of current yaw angle
+		}
+		
 		
 		linear = 0.0;
 		angular = 0.0;
@@ -87,12 +92,13 @@ void robot_rotate(){
 	}
 
 	printf("First distance, Last distance: %f, %f\n", dist_config.begin(), dist_config.end());
+
 	largest = max_element(dist_config.begin(), dist_config.end());
 	max_distance = *largest; // Extract maximum yaw value
 	max_distance_index = distance(dist_config.begin(), largest); // Extract index of maximum value
 	yaw_best = yaw_values.at(max_distance_index); // Extract best yaw value to rotate to
 
-	printf("Best yaw is: %f, \n", yaw_best);
+	printf("Best yaw is: %f, largest is %f \n", yaw_best, largest);
 
 	//Rotate the robot to the best yaw
 	ros::spinOnce();
@@ -103,7 +109,7 @@ void robot_rotate(){
 
 	while(ros::ok() && abs(yaw - yaw_best) > RES_ANG){
 		ros::spinOnce();
-		printf("ROTATING TO BEST YAW: CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, yaw_best);
+		//printf("ROTATING TO BEST YAW: CURRENT YAW: %f, DESIRED YAW: %f\n", yaw, yaw_best);
 		vel_pub.publish(vel);
 		// usleep(5000);
 	}
@@ -195,8 +201,8 @@ int main(int argc, char **argv){
 		eStop.block();
 		if(dist > 0.5){
 			//drive forward
-			printf("fwd\n");
-			if (dist < 0.8){
+			//printf("fwd\n");
+			if (dist < 0.8){ 
 				linear = 0.1;
 			}else{
 				linear = 0.25;
